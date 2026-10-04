@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="assets/logo.jpg"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Kaushan+Script&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><title>ورقة حالة | Friends Lab</title></head><body>
+<nav><div class="wrap"><a href="index.html" class="brand script"><img src="assets/logo.jpg" alt="شعار Friends Lab">Friends Lab</a><div class="links"><a href="index.html#services">خدماتنا</a><a href="gallery.html">معرض الأعمال</a><a href="prices.html">الأسعار</a><a href="index.html#track">تتبع حالة</a><a href="index.html#send" class="cta">إرسال حالة</a></div></div></nav>
+<div class="wrap noprint" style="padding-top:20px"><div class="btns"><button class="btn" onclick="print()">طباعة / حفظ PDF</button><a class="btn wa" id="shareWa" target="_blank" rel="noopener">مشاركة عبر واتساب</a></div></div>
+<div class="sheet">
+<div class="sh-head"><div><div class="script" style="font-size:26px;color:var(--blue)">Friends Lab</div><div>ورقة تسليم حالة مخبرية</div></div><div style="text-align:center"><img src="assets/logo.jpg" alt=""><div class="sh-code" id="code"></div></div></div>
+<div class="sh-grid"><div><b>التاريخ:</b> <span id="date"></span></div><div><b>موعد التسليم:</b> <span id="due"></span></div>
+<div><b>الطبيب:</b> <span id="doctor"></span></div><div><b>الهاتف:</b> <span id="phone"></span></div>
+<div><b>العيادة:</b> <span id="clinic"></span></div><div><b>اللون:</b> <span id="shade"></span></div>
+<div><b>المريض:</b> <span id="patient"></span></div><div><b>العمر / الجنس:</b> <span id="age"></span> / <span id="gender"></span></div></div>
+<div class="sh-box"><b>نوع العمل:</b><br><div id="types"></div></div>
+<div class="sh-box"><b>تفاصيل الحالة / ملاحظات الطبيب:</b><div class="lines" id="notes"></div></div>
+<div class="sh-box"><b>مرفقات الحالة:</b> <span id="atts"></span></div>
+<div class="sh-box"><b>صور الحالة:</b><div class="imgs" id="imgs"></div></div>
+<div class="sh-foot">اكتب الكود <b id="code2"></b> على الحالة الفيزيائية وأرفق هذه الورقة معها</div>
+</div>
+<script src="js/main.js"></script><script src="js/sheet.js"></script><script>if(document.getElementById("code2"))document.getElementById("code2").textContent=document.getElementById("code").textContent</script></body></html>
