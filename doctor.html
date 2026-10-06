@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="assets/logo.jpg"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Kaushan+Script&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><title>بوابة الطبيب | Friends Dental Lab</title></head><body>
+<nav><div class="wrap"><a href="index.html" class="brand script"><img src="assets/logo.jpg" alt="شعار Friends Lab">Friends Lab</a><div class="links"><a href="gallery.html">معرض الأعمال</a><a href="prices.html">الأسعار</a><a href="doctor.html" class="cta">بوابة الطبيب</a></div></div></nav>
+<section style="padding:30px 0 70px"><div class="wrap">
+<div id="authBox" class="auth"><h2>بوابة الطبيب</h2><p class="lead" style="margin-bottom:20px">أدر حالاتك مع Friends من مكان واحد.</p>
+<div class="tabs"><button id="tLogin" class="on">تسجيل الدخول</button><button id="tReg">إنشاء حساب</button></div>
+<form id="loginForm"><label>رقم الهاتف<input name="phone" type="tel" required></label><label style="margin-top:12px">كلمة المرور<input name="password" type="password" required></label>
+<button class="btn" style="width:100%;margin-top:18px">تسجيل الدخول</button><p style="margin-top:12px;font-size:13px;color:var(--muted)">نسيت كلمة المرور؟ تواصل مع Friends لإعادة ضبطها.</p></form>
+<form id="regForm" hidden><div class="f2">
+<label class="full">الاسم الكامل<input name="name" required></label>
+<label>رقم الهاتف<input name="phone" type="tel" required></label>
+<label>الاختصاص<input name="specialty"></label>
+<label class="full">اسم العيادة<input name="clinic_name" required></label>
+<label class="full">عنوان العيادة<input name="address"></label>
+<label>المنطقة<input name="area"></label>
+<label>كلمة المرور (6 أحرف على الأقل)<input name="password" type="password" minlength="6" required></label>
+<label class="full">شعار العيادة (PNG أو JPG أو WEBP)<input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
+</div><button class="btn" style="width:100%;margin-top:18px">إنشاء حساب</button></form>
+<p class="err" id="msg"></p></div>
+<div id="statusBox" class="auth card" hidden><h3>حالة الحساب</h3><p id="stMsg" style="margin:10px 0 16px"></p><button class="btn ghost" id="out1">تسجيل الخروج</button></div>
+<div id="homeBox" hidden><div class="ph-head"><div class="ph-clinic"><img id="clinicLogo" alt="" hidden><span class="ph-ph" id="logoPh">شعار العيادة</span><div><b id="clinicName"></b><br><small id="docName"></small></div></div><img class="ph-lab" src="assets/logo.jpg" alt="Friends Dental Lab"></div>
+<h2 id="hello"></h2><p class="lead">مرحباً بك في بوابة Friends Dental Lab. تم اعتماد حسابك، وجارٍ تجهيز لوحة الحالات.</p><button class="btn ghost" id="out2">تسجيل الخروج</button></div>
+</div></section>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/main.js"></script><script src="js/supabase.js"></script><script src="js/portal.js"></script></body></html>

@@ -1,0 +1,9 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="assets/logo.jpg"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Kaushan+Script&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><title>إدارة الأطباء | Friends</title><meta name="robots" content="noindex"></head><body>
+<nav><div class="wrap"><a href="index.html" class="brand script"><img src="assets/logo.jpg" alt="شعار Friends Lab">Friends Lab</a><div class="links"><a href="gallery.html">معرض الأعمال</a><a href="prices.html">الأسعار</a><a href="doctor.html" class="cta">بوابة الطبيب</a></div></div></nav>
+<section style="padding:30px 0 70px"><div class="wrap">
+<form id="gate" class="auth"><h2>دخول الإدارة</h2><label>رقم الهاتف<input name="phone" type="tel" required></label><label style="margin-top:12px">كلمة المرور<input name="password" type="password" required></label><button class="btn" style="width:100%;margin-top:18px">دخول</button><p class="err" id="bad"></p></form>
+<div id="panel" hidden><h2>الأطباء</h2><p class="lead">اعتمد الأطباء الجدد أو أوقف الحسابات.</p>
+<div class="tblw"><table class="tbl"><thead><tr><th>الاسم</th><th>العيادة</th><th>الهاتف</th><th>المنطقة</th><th>الحالة</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+<button class="btn ghost" id="outA" style="margin-top:20px">تسجيل الخروج</button></div>
+</div></section>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/main.js"></script><script src="js/supabase.js"></script><script src="js/portal-admin.js"></script></body></html>
