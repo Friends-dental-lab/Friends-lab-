@@ -4,9 +4,9 @@ async function boot() {
   if (!session) return showA("gate");
   const { data: ok, error: e2 } = await sb.rpc("is_admin");
   if (!ok) { $("bad").textContent = "هذا الحساب ليس حساب إدارة." + (e2 ? " (" + e2.message + ")" : ""); await sb.auth.signOut(); return showA("gate"); }
-  showA("panel"); load();
+  showA("panel"); loadDoctors();
 }
-async function load() {
+async function loadDoctors() {
   const { data, error } = await sb.from("doctors").select("*").order("created_at", { ascending: false });
   if (error) return $("rows").innerHTML = '<tr><td colspan="6">تعذر تحميل البيانات.</td></tr>';
   $("rows").innerHTML = data.map(d => `<tr><td>${esc(d.name)}</td><td>${esc(d.clinic_name)}</td><td dir="ltr">${esc(d.phone)}</td><td>${esc(d.area)}</td><td>${ST_AR[d.status]}</td>
@@ -16,7 +16,7 @@ $("rows").onclick = async e => {
   const b = e.target.closest("button[data-id]"); if (!b) return;
   b.disabled = true;
   await sb.from("doctors").update({ status: b.dataset.s }).eq("id", b.dataset.id);
-  load();
+  loadDoctors();
 };
 $("gate").onsubmit = async e => {
   e.preventDefault(); $("bad").textContent = "";
