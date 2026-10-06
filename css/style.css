@@ -77,3 +77,15 @@ input[type=checkbox]{width:auto;margin-left:4px}
 @media(max-width:600px){.sheet{width:auto;padding:16px}}
 @media print{@page{size:A5;margin:0}nav,footer,.noprint{display:none!important}body{background:#fff}.sheet{margin:0;border:0;width:148mm;height:210mm;padding:10mm}}
 .imgs img{height:28mm;border-radius:6px;margin:2px 4px 0 0;border:1px solid var(--line)}
+.auth{max-width:440px;margin:30px auto}
+.tabs{display:flex;gap:8px;margin-bottom:18px}
+.tabs button{flex:1;padding:12px;border:1px solid var(--line);background:#fff;border-radius:12px;font:inherit;font-weight:700;color:var(--blue);cursor:pointer}
+.tabs button.on{background:var(--blue);color:#fff}
+.err{color:#b00020;min-height:24px;margin-top:10px;font-size:14px}
+.ph-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:22px}
+.ph-clinic{display:flex;align-items:center;gap:10px;line-height:1.4}
+.ph-clinic img,.ph-ph{height:48px;max-width:110px;object-fit:contain}
+.ph-ph{display:grid;place-items:center;border:1px dashed #9bc0cd;border-radius:8px;padding:0 10px;color:var(--muted);font-size:12px}
+.ph-lab{height:48px;border-radius:10px}
+label>input,label>select{margin-top:4px;font-weight:400}
+.btn.sm{padding:6px 12px;font-size:12px}
