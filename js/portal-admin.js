@@ -2,8 +2,8 @@ const showA = id => ["gate", "panel"].forEach(x => $(x).hidden = x !== id);
 async function boot() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return showA("gate");
-  const { data: ok } = await sb.rpc("is_admin");
-  if (!ok) { $("bad").textContent = "هذا الحساب ليس حساب إدارة."; await sb.auth.signOut(); return showA("gate"); }
+  const { data: ok, error: e2 } = await sb.rpc("is_admin");
+  if (!ok) { $("bad").textContent = "هذا الحساب ليس حساب إدارة." + (e2 ? " (" + e2.message + ")" : ""); await sb.auth.signOut(); return showA("gate"); }
   showA("panel"); load();
 }
 async function load() {
@@ -22,7 +22,7 @@ $("gate").onsubmit = async e => {
   e.preventDefault(); $("bad").textContent = "";
   const f = new FormData(e.target);
   const { error } = await sb.auth.signInWithPassword({ email: toEmail(f.get("phone")), password: f.get("password") });
-  error ? $("bad").textContent = "رقم الهاتف أو كلمة المرور غير صحيحة." : boot();
+  error ? $("bad").textContent = "تعذر الدخول: " + error.message : boot();
 };
 $("outA").onclick = async () => { await sb.auth.signOut(); boot(); };
 boot();
