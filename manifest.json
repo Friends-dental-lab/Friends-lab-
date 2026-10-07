@@ -1,0 +1,23 @@
+{
+ "name": "Friends Dental Lab - بوابة الطبيب",
+ "short_name": "Friends",
+ "start_url": "doctor.html",
+ "scope": "./",
+ "display": "standalone",
+ "dir": "rtl",
+ "lang": "ar",
+ "background_color": "#ffffff",
+ "theme_color": "#04688a",
+ "icons": [
+  {
+   "src": "assets/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "assets/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  }
+ ]
+}
