@@ -1,6 +1,7 @@
 const WORK = ["تاج", "جسر", "زيركون", "فينير", "متحرك", "تعويض آخر", "أخرى"];
 const TEETH = { "أعلى يمين": [18, 17, 16, 15, 14, 13, 12, 11], "أعلى يسار": [21, 22, 23, 24, 25, 26, 27, 28], "أسفل يمين": [48, 47, 46, 45, 44, 43, 42, 41], "أسفل يسار": [31, 32, 33, 34, 35, 36, 37, 38] };
-let me, draft = null, done = null, pre = "";
+let me, draft = null, done = null, pre = "", inst = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); inst = e; });
 const show = id => ["authBox", "statusBox", "appBox"].forEach(x => $(x).hidden = x !== id);
 const err = m => $("msg").textContent = m || "";
 const BAD = "تعذر التحميل. تحقق من اتصال الإنترنت وحاول مرة أخرى.";
@@ -128,7 +129,7 @@ async function vAccounts() {
 <h3 class="sh">آخر الحركات</h3>${py.slice(0, 20).map(x => `<div class="cc"><div class="r"><b>${esc(x.patients?.name_or_code)}</b><span class="bd ${x.kind === "payment" ? "ready" : "sent"}">${x.kind === "payment" ? "دفعة" : "رسوم"} ${fmtN(x.amount)}</span></div><p>${esc(x.note)} · ${D(x.created_at)}</p></div>`).join("")}`;
 }
 async function vProfile() {
-  return `<h2>حسابي</h2><div class="quick"><a href="#/accounts">${svg("file")}الحسابات</a><a href="#/notes">${svg("bell")}الإشعارات</a><a href="#/pickup">${svg("car")}طلب استلام</a></div><h3 class="sh">هوية العيادة</h3>
+  return `<h2>حسابي</h2><div class="card"><h3>تثبيت التطبيق على هاتفك</h3><p>${inst ? "اضغط الزر لإضافة التطبيق إلى شاشتك الرئيسية." : "من قائمة المتصفح اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»."}</p>${inst ? '<button class="btn sm" data-act="install">تثبيت التطبيق</button>' : ""}</div><div class="quick"><a href="#/accounts">${svg("file")}الحسابات</a><a href="#/notes">${svg("bell")}الإشعارات</a><a href="#/pickup">${svg("car")}طلب استلام</a></div><h3 class="sh">هوية العيادة</h3>
 <div class="ph-head"><div class="ph-clinic">${me.logo_url ? `<img src="${esc(me.logo_url)}" alt="">` : '<span class="ph-ph">شعار العيادة</span>'}<div><b>${esc(me.clinic_name)}</b></div></div><img class="ph-lab" src="assets/logo.jpg" alt="Friends Dental Lab"></div>
 <form id="prF"><div class="f2"><label class="full">الاسم الكامل<input name="name" value="${esc(me.name)}" required></label><label>رقم الهاتف<input name="phone" value="${esc(me.phone)}" required></label><label>الاختصاص<input name="specialty" value="${esc(me.specialty)}"></label><label class="full">اسم العيادة<input name="clinic_name" value="${esc(me.clinic_name)}"></label><label class="full">عنوان العيادة<input name="address" value="${esc(me.address)}"></label><label>المنطقة<input name="area" value="${esc(me.area)}"></label><label>تغيير شعار العيادة<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label></div><button class="btn" style="width:100%;margin-top:14px">حفظ التعديلات</button></form><p class="err" id="fmsg"></p><p class="lead">حالة الحساب: ${ST_AR[me.status]} (لا تُعدّل إلا من الإدارة).</p><button class="btn ghost" data-act="logout">تسجيل الخروج</button>`;
 }
@@ -138,6 +139,7 @@ v.onclick = e => {
   if (t.classList.contains("tooth")) t.classList.toggle("on");
   const pt = t.closest("[data-pt]"); if (pt) pre = pt.dataset.pt;
   const ax = t.closest("[data-apx]"); if (ax) sb.from("appointments").update({ status: ax.dataset.s }).eq("id", ax.dataset.apx).then(route);
+  if (t.dataset.act === "install" && inst) inst.prompt();
   if (t.dataset.act === "logout") sb.auth.signOut().then(() => { me = null; boot(); });
   if (t.dataset.act === "send") send(t);
   if (t.dataset.act === "edit") { draft.review = false; route(); }

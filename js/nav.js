@@ -32,3 +32,5 @@ document.addEventListener("click", e => {
   if (b) b.setAttribute("aria-expanded", l.classList.toggle("open"));
   else if (e.target.closest(".links a") || !e.target.closest("nav")) l.classList.remove("open");
 });
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

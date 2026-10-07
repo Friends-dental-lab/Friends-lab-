@@ -1,5 +1,5 @@
 // ===== إعدادات =====
-const CONFIG = { whatsapp: "963992693384", country: "963", sheetUrl: "https://script.google.com/macros/s/AKfycbwoFgnWiTv0Xvs2y_B7jg54wJGJ3GaFsArTIAoktZILvMcwKVEXgivWwmZGPUSTfzY_/exec", adminPass: "FrIeNds44ash4", currency: "ل.س" };
+const CONFIG = { whatsapp: "963992693384", country: "963", sheetUrl: "https://script.google.com/macros/s/AKfycbwoFgnWiTv0Xvs2y_B7jg54wJGJ3GaFsArTIAoktZILvMcwKVEXgivWwmZGPUSTfzY_/exec", currency: "ل.س" };
 const REVIEWS = []; // تقييمات معتمدة: {name:"د. ...", stars:5, text:"..."}
 const KEY = "fl_cases", $ = id => document.getElementById(id);
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
