@@ -26,3 +26,20 @@ function caseHtml(c, p) {
     nt: p.n.map(x => `<div class="note ${x.author}"><small>${x.author === "lab" ? "المخبر" : "الطبيب"} · ${DT(x.created_at)}</small><p>${esc(x.message)}</p></div>`).join("")
   };
 }
+
+// ===== لوحات تفاعلية =====
+const MN = k => ["كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"][+k.slice(5) - 1];
+const monthsBack = n => { const d = new Date(), r = []; for (let i = n - 1; i >= 0; i--) { const x = new Date(d.getFullYear(), d.getMonth() - i, 1); r.push(x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0")); } return r; };
+const bars = (rows, attr = "") => { const m = Math.max(1, ...rows.map(r => r.v)); return `<div class="bars">${rows.map(r => `<div class="br"${r.a && attr ? ` ${attr}="${r.a}"` : ""}><span class="bl">${esc(r.l)}</span><div class="bt"><i style="width:${r.v ? Math.max(4, r.v / m * 100) : 0}%"></i></div><b>${r.t ?? r.v}</b></div>`).join("") || '<p class="lead">لا توجد بيانات.</p>'}</div>`; };
+const stChart = (by, attr) => `<div class="seg">${ORDER.filter(s => by[s]).map(s => `<i class="sg ${s}" style="flex:${by[s]}" ${attr.replace("%S", s)}></i>`).join("")}</div><div class="lgs">${ORDER.map(s => `<button type="button" class="lg" ${attr.replace("%S", s)}><i class="sg ${s}"></i>${ST[s]} <b>${by[s] || 0}</b></button>`).join("")}</div>`;
+const cnt = (arr, f) => { const m = {}; arr.forEach(x => { const k = f(x); m[k] = (m[k] || 0) + 1; }); return m; };
+
+// ===== المساعد الذكي =====
+let CHAT = [];
+const chatView = hint => `<h2>المساعد</h2><p class="lead">${hint}</p><div class="chat">${CHAT.map(m => `<div class="note ${m.role === "user" ? "" : "lab"}"><small>${m.role === "user" ? "أنت" : "المساعد"}</small><p>${esc(m.content).replace(/\n/g, "<br>")}</p></div>`).join("") || '<p class="lead">اسألني عن خدمات المخبر، أو كيف ترسل حالة، أو أين وصلت حالاتك.</p>'}</div><form id="chatF"><textarea name="m" required placeholder="اكتب سؤالك هنا"></textarea><button class="btn sm" style="margin-top:8px">إرسال</button></form>`;
+async function chatSend(text, rerender) {
+  CHAT.push({ role: "user", content: text }, { role: "assistant", content: "جارٍ التفكير..." }); rerender();
+  let reply = "تعذر الحصول على رد الآن. حاول لاحقاً.";
+  try { const { data } = await sb.functions.invoke("assistant", { body: { messages: CHAT.slice(-11, -1) } }); if (data?.reply) reply = data.reply; } catch (e) {}
+  CHAT[CHAT.length - 1].content = reply; rerender();
+}

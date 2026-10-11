@@ -1,8 +1,8 @@
 const showA = id => ["gate", "panel"].forEach(x => $(x).hidden = x !== id);
-let tab = "home", flt = "", CASES = [], QALL = [];
+let tab = "home", flt = "", CASES = [], QALL = [], rg = 30;
 const QST = ["قيد الاستلام", "قيد العمل", "جاهزة", "سُلّمت"];
 const today = () => new Date().toISOString().slice(0, 10);
-const CSEL = "id,case_number,work_type,status,created_at,requested_delivery_date,ready_date,patients(name_or_code),doctors(name,clinic_name)";
+const CSEL = "id,case_number,work_type,status,created_at,requested_delivery_date,ready_date,doctor_id,patients(name_or_code),doctors(name,clinic_name)";
 const st = (t, x, c = "") => `<div class="stat ${c}"><b>${x}</b><span>${t}</span></div>`;
 const late = c => c.requested_delivery_date && c.requested_delivery_date < today() && !["ready", "delivered"].includes(c.status);
 const sec = (t, l, f) => l.length ? `<h3 class="sh">${t} (${l.length})</h3>${l.map(f).join("")}` : "";
@@ -20,7 +20,7 @@ async function boot() {
 async function go() {
   document.querySelectorAll("#tabs button").forEach(b => b.className = b.dataset.t === tab ? "on" : "");
   $("av").innerHTML = '<p class="lead">جارٍ التحميل...</p>';
-  try { $("av").innerHTML = await ({ home: tHome, cases: tCases, doctors: tDoctors, pickups: tPickups, quick: tQuick }[tab])(); } catch (e) { $("av").innerHTML = '<p class="err">تعذر التحميل. أعد المحاولة.</p>'; }
+  try { $("av").innerHTML = await ({ home: tHome, cases: tCases, doctors: tDoctors, pickups: tPickups, quick: tQuick, invites: tInvites, help: tHelp }[tab])(); } catch (e) { $("av").innerHTML = '<p class="err">تعذر التحميل. أعد المحاولة.</p>'; }
 }
 async function tHome() {
   const [{ data: cs }, { data: ds }, { data: pk }] = await Promise.all([sb.from("cases").select(CSEL).order("created_at", { ascending: false }), sb.from("doctors").select("id,name,clinic_name,phone,status"), sb.from("pickup_requests").select("*,doctors(name,clinic_name)").eq("status", "new")]);
@@ -28,7 +28,14 @@ async function tHome() {
   const body = sec("حسابات بانتظار الاعتماد", pend, d => `<div class="cc"><div class="r"><b>${esc(d.clinic_name) || esc(d.name)}</b></div><p>د. ${esc(d.name)} · <span dir="ltr">${esc(d.phone)}</span></p><div class="btns" style="margin-top:8px"><button class="btn sm" data-ap="${d.id}" data-s="approved">اعتماد</button><button class="btn ghost sm" data-did="${d.id}">عرض</button></div></div>`) +
     sec("حالات جديدة", cs.filter(c => c.status === "sent"), ccA) + sec("حالات متأخرة", L, ccA) +
     sec("طلبات استلام جديدة", pk, r => `<div class="cc"><div class="r"><b>${esc(r.doctors?.clinic_name)}</b><span class="bd pk_new">${PK[r.status]}</span></div><p>${esc(r.address)} · ${r.cases_count} حالة · ${esc(r.preferred_time)}</p></div>`);
-  return `<div class="stats">${st("حالات جديدة", n("sent"))}${st("قيد التنفيذ", n("received", "in_progress", "review"))}${st("جاهزة", n("ready"), "ok")}${st("متأخرة", L.length)}${st("أطباء معتمدون", ds.filter(d => d.status === "approved").length)}${st("حالات هذا الشهر", cs.filter(c => c.created_at.slice(0, 7) === today().slice(0, 7)).length)}</div><h2>تحتاج إجراء الآن</h2>` + (body || '<p class="lead">لا يوجد ما يحتاج إجراء الآن.</p>');
+  const R = cs.filter(c => c.created_at >= new Date(Date.now() - rg * 864e5).toISOString()), ms = monthsBack(6), bm = cnt(cs, c => c.created_at.slice(0, 7)), top = {};
+  R.forEach(c => { (top[c.doctor_id] = top[c.doctor_id] || { l: c.doctors?.clinic_name || c.doctors?.name, v: 0, a: c.doctor_id }).v++; });
+  const charts = `<div class="tabs">${[[7, "7 أيام"], [30, "30 يوماً"], [180, "6 أشهر"]].map(([d, t]) => `<button data-rg="${d}" class="${rg === d ? "on" : ""}">${t}</button>`).join("")}</div>
+<div class="chart"><h3>توزيع الحالات (اضغط لعرض الحالات)</h3>${stChart(cnt(R, c => c.status), 'data-st="%S"')}</div>
+<div class="chart"><h3>الحالات الواردة شهرياً</h3>${bars(ms.map(m => ({ l: MN(m), v: bm[m] || 0 })))}</div>
+<div class="chart"><h3>أكثر العيادات نشاطاً (اضغط لفتح العيادة)</h3>${bars(Object.values(top).sort((a, b) => b.v - a.v).slice(0, 5), "data-did")}</div>
+<div class="chart"><h3>أنواع الأعمال</h3>${bars(Object.entries(cnt(R, c => c.work_type)).sort((a, b) => b[1] - a[1]).map(([l, v]) => ({ l, v })))}</div>`;
+  return `<div class="stats">${st("حالات جديدة", n("sent"))}${st("قيد التنفيذ", n("received", "in_progress", "review"))}${st("جاهزة", n("ready"), "ok")}${st("متأخرة", L.length)}${st("أطباء معتمدون", ds.filter(d => d.status === "approved").length)}${st("حالات هذا الشهر", cs.filter(c => c.created_at.slice(0, 7) === today().slice(0, 7)).length)}</div>${charts}<h2>تحتاج إجراء الآن</h2>` + (body || '<p class="lead">لا يوجد ما يحتاج إجراء الآن.</p>');
 }
 async function tCases() {
   const { data } = await sb.from("cases").select(CSEL).order("created_at", { ascending: false }); CASES = data;
@@ -46,8 +53,8 @@ async function tCase(id) {
   return `<button class="btn ghost sm" data-back>رجوع</button>
 <div class="ph-head" style="margin-top:12px"><div class="ph-clinic">${d.logo_url ? `<img src="${esc(d.logo_url)}" alt="">` : '<span class="ph-ph">شعار العيادة</span>'}<div><b>${esc(d.clinic_name)}</b><br><small>د. ${esc(d.name)} · <span dir="ltr">${esc(d.phone)}</span></small></div></div><img class="ph-lab" src="assets/logo.jpg" alt="Friends Dental Lab"></div>
 <h2 dir="ltr" style="text-align:right">${c.case_number}</h2>${bd(c.status)} <a class="btn ghost sm" href="case.html?id=${c.id}" target="_blank">ورقة الحالة A5</a> <button class="btn ghost sm" data-did="${d.id}">ملف العيادة</button>${info(c)}
-<form id="stF" data-id="${c.id}" class="card"><div class="f2"><label>الحالة<select name="s">${ORDER.map(s => `<option value="${s}"${s === c.status ? " selected" : ""}>${ST[s]}</option>`).join("")}</select></label><label>موعد الجاهزية<input type="date" name="r" value="${c.ready_date || ""}"></label></div><button class="btn" style="margin-top:12px">تحديث الحالة</button></form>
-<h3 class="sh">مراحل الحالة</h3><ul class="tl">${x.tl}</ul><h3 class="sh">المرفقات</h3><div class="files">${x.fl}</div><h3 class="sh">ملاحظات الحالة</h3>${x.nt}<form id="noteF" data-id="${c.id}"><textarea name="m" required placeholder="اكتب ملاحظة للطبيب"></textarea><button class="btn sm" style="margin-top:8px">إرسال الملاحظة</button></form>`;
+<form id="stF" data-cid="${c.id}" class="card"><div class="f2"><label>الحالة<select name="s">${ORDER.map(s => `<option value="${s}"${s === c.status ? " selected" : ""}>${ST[s]}</option>`).join("")}</select></label><label>موعد الجاهزية<input type="date" name="r" value="${c.ready_date || ""}"></label></div><button class="btn" style="margin-top:12px">تحديث الحالة</button></form>
+<h3 class="sh">مراحل الحالة</h3><ul class="tl">${x.tl}</ul><h3 class="sh">المرفقات</h3><div class="files">${x.fl}</div><h3 class="sh">ملاحظات الحالة</h3>${x.nt}<form id="noteF" data-cid="${c.id}"><textarea name="m" required placeholder="اكتب ملاحظة للطبيب"></textarea><button class="btn sm" style="margin-top:8px">إرسال الملاحظة</button></form><button class="btn ghost danger" style="margin-top:22px" data-adel="cases:${c.id}">حذف الحالة نهائياً</button>`;
 }
 async function tDoctors() {
   const { data } = await sb.from("doctors").select("*").order("created_at", { ascending: false });
@@ -62,18 +69,42 @@ async function tDoctor(id) {
 }
 async function tPickups() {
   const { data } = await sb.from("pickup_requests").select("*,doctors(name,clinic_name)").order("created_at", { ascending: false });
-  return data.map(r => `<div class="cc"><div class="r"><b>${esc(r.doctors?.clinic_name)}</b><span class="bd pk_${r.status}">${PK[r.status]}</span></div><p>د. ${esc(r.doctors?.name)} · ${esc(r.address)} · <span dir="ltr">${esc(r.phone)}</span></p><p>${r.cases_count} حالة · ${esc(r.preferred_time)} ${esc(r.notes)}</p><select data-pk="${r.id}" style="margin-top:8px">${Object.entries(PK).map(([k, v]) => `<option value="${k}"${k === r.status ? " selected" : ""}>${v}</option>`).join("")}</select></div>`).join("") || '<p class="lead">لا توجد طلبات.</p>';
+  return data.map(r => `<div class="cc"><div class="r"><b>${esc(r.doctors?.clinic_name)}</b><span class="bd pk_${r.status}">${PK[r.status]}</span></div><p>د. ${esc(r.doctors?.name)} · ${esc(r.address)} · <span dir="ltr">${esc(r.phone)}</span></p><p>${r.cases_count} حالة · ${esc(r.preferred_time)} ${esc(r.notes)}</p><select data-pk="${r.id}" style="margin-top:8px">${Object.entries(PK).map(([k, v]) => `<option value="${k}"${k === r.status ? " selected" : ""}>${v}</option>`).join("")}</select> <button class="btn ghost sm danger" data-adel="pickup_requests:${r.id}">حذف الطلب</button></div>`).join("") || '<p class="lead">لا توجد طلبات.</p>';
 }
 async function tQuick() {
   QALL = load();
   if (CONFIG.sheetUrl) try { const r = await (await fetch(CONFIG.sheetUrl)).json(), m = new Map(QALL.map(c => [c.code, c])); r.forEach(c => m.set(c.code, { ...m.get(c.code), ...c })); QALL = [...m.values()]; } catch {}
   return '<h2>الحالات السريعة (بدون حساب)</h2><p class="lead">الحالات المرسلة من النموذج السريع، من الجدول.</p>' + (QALL.slice().reverse().map(c => `<div class="cc"><div class="r"><b dir="ltr">${esc(c.code)}</b><span class="bd">${esc(c.status)}</span></div><p>${esc(c.doctor)} · ${esc(c.type)} · ${esc(c.due) || "—"}</p><div class="btns" style="margin-top:8px"><select data-q="${esc(c.code)}">${QST.map(s => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select><a class="btn ghost sm" target="_blank" href="case.html#${enc(c)}">الورقة</a><a class="btn wa sm" target="_blank" rel="noopener" href="${wa(intl(c.phone), `مرحباً د. ${c.doctor}، حالتك رقم ${c.code} (${c.type}): ${c.status}. Friends Lab`)}">إشعار</a>${imgIds(c).map((i, n) => `<a class="btn ghost sm" target="_blank" href="https://drive.google.com/file/d/${i}/view">صورة ${n + 1}</a>`).join("")}</div></div>`).join("") || '<p class="lead">لا توجد حالات.</p>');
 }
+async function tHelp() { return chatView("مساعد الإدارة: يلخّص حالاتك الأخيرة ويساعد في صياغة الردود. قد يخطئ، فراجع قبل الإرسال."); }
+async function tInvites() {
+  const { data } = await sb.from("invites").select("*").order("created_at", { ascending: false });
+  return `<h2>رموز الدعوة</h2><p class="lead">أعطِ الطبيب رمزاً أو QR، فيُعتمد حسابه فوراً عند التسجيل. لكل رمز عدد استخدامات محدود.</p><form id="invF" class="card"><div class="f2"><label>الاسم (عيادة أو منطقة)<input name="l" required></label><label>عدد الاستخدامات<input name="m" type="number" min="1" value="5"></label></div><button class="btn sm" style="margin-top:10px">إنشاء رمز</button></form>` +
+    (data.map(i => `<div class="cc"><div class="r"><b dir="ltr">${esc(i.code)}</b><span class="bd ${i.active ? "ready" : "pk_cancelled"}">${i.uses}/${i.max_uses}${i.active ? "" : " · معطّل"}</span></div><p>${esc(i.label)}</p><div class="btns" style="margin-top:8px"><button class="btn sm" data-qr="${esc(i.code)}">QR</button><button class="btn ghost sm" data-iv="${esc(i.code)}" data-on="${i.active ? 1 : 0}">${i.active ? "تعطيل" : "تفعيل"}</button><button class="btn ghost sm danger" data-adel="invites:${esc(i.code)}">حذف</button></div><div style="text-align:center;margin-top:8px"></div></div>`).join("") || '<p class="lead">لا توجد رموز بعد.</p>');
+}
+function showQr(code, box) {
+  const url = new URL("doctor.html", location.href).href + "?invite=" + code;
+  box.innerHTML = ""; new QRCode(box, { text: url, width: 200, height: 200 });
+  setTimeout(() => { const img = box.querySelector("img"); box.insertAdjacentHTML("beforeend", `${img ? `<p><a class="btn sm" download="invite-${code}.png" href="${img.src}">تنزيل صورة QR</a></p>` : ""}<p dir="ltr" style="font-size:12px;word-break:break-all">${url}</p>`); }, 200);
+}
 const av = $("av");
 $("tabs").onclick = e => { const b = e.target.closest("button[data-t]"); if (b) { tab = b.dataset.t; go(); } };
 av.oninput = e => { if (e.target.id === "q") document.querySelectorAll("#av .cc").forEach(c => c.hidden = !c.textContent.includes(e.target.value)); };
 av.onclick = async e => {
   const t = e.target;
+  const adel = t.closest("[data-adel]");
+  if (adel) {
+    const [tb, id] = adel.dataset.adel.split(":");
+    if (!["cases", "invites", "pickup_requests"].includes(tb) || !confirm("هل أنت متأكد من الحذف؟ لا يمكن التراجع.")) return;
+    if (tb === "cases") { const { data: f } = await sb.from("case_files").select("file_url").eq("case_id", id); if (f?.length) await sb.storage.from("case-files").remove(f.map(x => x.file_url)); }
+    const { data, error } = await sb.from(tb).delete().eq(tb === "invites" ? "code" : "id", id).select();
+    if (error || !data?.length) return alert("تعذر الحذف.");
+    return go();
+  }
+  const rgb = t.closest("[data-rg]"); if (rgb) { rg = +rgb.dataset.rg; return go(); }
+  const sgb = t.closest("[data-st]"); if (sgb) { tab = "cases"; flt = sgb.dataset.st; return go(); }
+  const iv = t.closest("[data-iv]"); if (iv) { await sb.from("invites").update({ active: iv.dataset.on !== "1" }).eq("code", iv.dataset.iv); return go(); }
+  const qr = t.closest("[data-qr]"); if (qr) return showQr(qr.dataset.qr, qr.parentElement.nextElementSibling);
   if (t.closest("[data-exp]")) return exportCsv();
   if (t.closest("[data-back]")) return go();
   const f = t.closest("[data-f]"); if (f) { flt = f.dataset.f; return go(); }
@@ -82,7 +113,9 @@ av.onclick = async e => {
   const c = t.closest("[data-id]"); if (c) { av.innerHTML = '<p class="lead">جارٍ التحميل...</p>'; av.innerHTML = await tCase(c.dataset.id); window.scrollTo(0, 0); }
 };
 av.onsubmit = async e => {
-  e.preventDefault(); const f = e.target, id = f.dataset.id, d = Object.fromEntries(new FormData(f));
+  e.preventDefault(); const f = e.target, id = f.dataset.cid, d = Object.fromEntries(new FormData(f));
+  if (f.id === "chatF") { f.reset(); return chatSend(d.m, async () => { av.innerHTML = await tHelp(); window.scrollTo(0, document.body.scrollHeight); }); }
+  if (f.id === "invF") { const code = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 32]).join(""), r = await sb.from("invites").insert({ code, label: d.l, max_uses: +d.m || 5 }); if (r.error) return alert("تعذر إنشاء الرمز."); return go(); }
   const r = f.id === "stF" ? await sb.from("cases").update({ status: d.s, ready_date: d.r || null }).eq("id", id) : await sb.from("case_notes").insert({ case_id: id, author: "lab", message: d.m });
   if (r.error) return alert("تعذر الحفظ. حاول مرة أخرى.");
   av.innerHTML = await tCase(id);

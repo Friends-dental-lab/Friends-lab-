@@ -1,6 +1,6 @@
 const WORK = ["تاج", "جسر", "زيركون", "فينير", "متحرك", "تعويض آخر", "أخرى"];
 const TEETH = { "أعلى يمين": [18, 17, 16, 15, 14, 13, 12, 11], "أعلى يسار": [21, 22, 23, 24, 25, 26, 27, 28], "أسفل يمين": [48, 47, 46, 45, 44, 43, 42, 41], "أسفل يسار": [31, 32, 33, 34, 35, 36, 37, 38] };
-let me, draft = null, done = null, pre = "", inst = null;
+let me, draft = null, done = null, pre = "", preKind = "charge", inst = null;
 addEventListener("beforeinstallprompt", e => { e.preventDefault(); inst = e; });
 const show = id => ["authBox", "statusBox", "appBox"].forEach(x => $(x).hidden = x !== id);
 const err = m => $("msg").textContent = m || "";
@@ -27,20 +27,27 @@ async function badge() {
 }
 async function route() {
   const [r, a] = (location.hash.slice(2) || "home").split("/"), v = $("view");
-  document.querySelectorAll(".bn a").forEach(x => x.classList.toggle("on", x.dataset.r === ({ case: "cases", new: "cases", patient: "patients", accounts: "profile", notes: "profile", pickup: "profile" }[r] || r)));
+  document.querySelectorAll(".bn a").forEach(x => x.classList.toggle("on", x.dataset.r === ({ case: "cases", new: "cases", patient: "patients", accounts: "profile", notes: "profile", pickup: "profile", stats: "home" }[r] || r)));
   v.innerHTML = '<p class="lead">جارٍ التحميل...</p>';
-  try { v.innerHTML = await ({ home: vHome, cases: vCases, case: () => vCase(a), new: vNew, notes: vNotes, pickup: vPickup, patients: vPatients, patient: () => vPatient(a), appts: vAppts, accounts: vAccounts, profile: vProfile }[r] || vHome)(); } catch (e) { v.innerHTML = `<p class="err">${BAD}</p>`; }
+  try { v.innerHTML = await ({ home: vHome, cases: vCases, case: () => vCase(a), new: vNew, notes: vNotes, pickup: vPickup, help: vHelp, stats: vStats, patients: vPatients, patient: () => vPatient(a), appts: vAppts, accounts: vAccounts, profile: vProfile }[r] || vHome)(); } catch (e) { v.innerHTML = `<p class="err">${BAD}</p>`; }
   window.scrollTo(0, 0); pre = "";
 }
 window.onhashchange = () => me && route();
 
 async function vHome() {
   const { data: cs } = await sb.from("cases").select(SEL).order("created_at", { ascending: false });
-  const n = (...s) => cs.filter(c => s.includes(c.status)).length, st = (t, x, c = "") => `<div class="stat ${c}"><b>${x}</b><span>${t}</span></div>`;
+  const n = (...s) => cs.filter(c => s.includes(c.status)).length;
   return `<h2>مرحباً د. ${esc(me.name)}</h2><p class="lead">مرحباً بك في بوابة Friends Dental Lab</p>
-<div class="stats">${st("الحالات الحالية", cs.length - n("delivered"))}${st("قيد التنفيذ", n("received", "in_progress", "review"))}${st("جاهزة", n("ready"), "ok")}${st("مكتملة", n("delivered"))}</div>
-<div class="quick"><a href="#/new">${svg("plus")}حالة جديدة</a><a href="#/patients">${svg("users")}مريض جديد</a><a href="#/appts">${svg("cal")}موعد جديد</a><a href="#/pickup">${svg("car")}طلب استلام</a><a href="#/accounts">${svg("file")}الحسابات</a><a href="#/notes">${svg("bell")}الإشعارات</a></div>
+<div class="stats"><div class="stat ok"><b>${n("ready")}</b><span>جاهزة للاستلام</span></div><div class="stat"><b>${n("sent", "received", "in_progress", "review")}</b><span>قيد العمل عند المخبر</span></div></div>
+<div class="quick2"><a href="#/new">${svg("plus")}حالة جديدة</a><a href="#/patients">${svg("users")}مريض جديد</a><a href="#/appts">${svg("cal")}موعد جديد</a><a href="#/pickup">${svg("car")}طلب استلام</a></div>
+<a class="cc" href="#/accounts"><b>الحسابات</b><p>ما على المرضى لك، وما استلمته منهم.</p></a><a class="cc" href="#/stats"><b>الإحصائيات</b><p>رسوم بيانية عن حالاتك.</p></a>
 <h3 class="sh">آخر الحالات</h3>${cs.length ? cs.slice(0, 3).map(cc).join("") : empty()}`;
+}
+async function vStats() {
+  const [{ data: cs }, { data: py }] = await Promise.all([sb.from("cases").select(SEL), sb.from("payments").select("kind,amount,created_at")]);
+  const ms = monthsBack(6), cm = cnt(cs, c => c.created_at.slice(0, 7)), pm = {};
+  (py || []).filter(x => x.kind === "payment").forEach(x => { const k = x.created_at.slice(0, 7); pm[k] = (pm[k] || 0) + +x.amount; });
+  return `<h2>الإحصائيات</h2><div class="chart"><h3>حالاتي مع المخبر</h3>${stChart(cnt(cs, c => c.status), 'data-go="#/cases"')}</div><div class="chart"><h3>الحالات المرسلة شهرياً</h3>${bars(ms.map(m => ({ l: MN(m), v: cm[m] || 0 })))}</div><div class="chart"><h3>المقبوض شهرياً</h3>${bars(ms.map(m => ({ l: MN(m), v: Math.round(pm[m] || 0), t: fmtN(pm[m] || 0) })))}</div>`;
 }
 async function vCases() {
   const { data } = await sb.from("cases").select(SEL).order("created_at", { ascending: false });
@@ -51,7 +58,7 @@ async function vCases() {
 }
 async function vCase(id) {
   const [{ data: c }, p] = await Promise.all([sb.from("cases").select("*,patients(name_or_code)").eq("id", id).single(), caseParts(id)]), x = caseHtml(c, p);
-  return `<h2 dir="ltr" style="text-align:right">${c.case_number}</h2>${bd(c.status)} <a class="btn ghost sm" href="case.html?id=${c.id}" target="_blank">ورقة الحالة A5</a>${info(c)}<h3 class="sh">مراحل الحالة</h3><ul class="tl">${x.tl}</ul><h3 class="sh">المرفقات</h3><div class="files">${x.fl}</div><h3 class="sh">ملاحظات الحالة</h3>${x.nt}<form id="noteF" data-id="${c.id}"><textarea name="m" required placeholder="اكتب ملاحظة للمخبر"></textarea><button class="btn sm" style="margin-top:8px">إرسال الملاحظة</button></form>`;
+  return `<h2 dir="ltr" style="text-align:right">${c.case_number}</h2>${bd(c.status)} <a class="btn ghost sm" href="case.html?id=${c.id}" target="_blank">ورقة الحالة A5</a>${info(c)}<h3 class="sh">مراحل الحالة</h3><ul class="tl">${x.tl}</ul><h3 class="sh">المرفقات</h3><div class="files">${x.fl}</div><h3 class="sh">ملاحظات الحالة</h3>${x.nt}<form id="noteF" data-id="${c.id}"><textarea name="m" required placeholder="اكتب ملاحظة للمخبر"></textarea><button class="btn sm" style="margin-top:8px">إرسال الملاحظة</button></form>${c.status === "sent" ? `<button class="btn ghost danger" style="margin-top:22px" data-del="cases:${c.id}">حذف الحالة</button><p class="lead">يمكنك حذف الحالة قبل أن يستلمها المخبر فقط.</p>` : ""}`;
 }
 async function vNew() {
   if (done) { const d = done; done = null; return `<div class="card"><h3>تم إرسال الحالة بنجاح</h3><p>رقم الحالة:</p><div class="code">${d.case_number}</div><p>احتفظ بهذا الرقم لاستخدامه في التواصل مع المخبر.</p><a class="btn" href="#/case/${d.id}">عرض الحالة</a></div>`; }
@@ -80,6 +87,7 @@ async function send(btn) {
     draft = null; done = c; route();
   } catch (e) { btn.disabled = false; btn.textContent = "إرسال الحالة إلى Friends"; $("nmsg").textContent = "تعذر إرسال الحالة. تحقق من اتصال الإنترنت وحاول مرة أخرى."; }
 }
+async function vHelp() { return chatView("مساعد خاص ببوابة Friends. قد يخطئ، فتحقق من المعلومات المهمة، ولا تكتب أسماء مرضى."); }
 async function vNotes() {
   const { data } = await sb.from("notifications").select("*").order("created_at", { ascending: false }).limit(50);
   sb.from("notifications").update({ read: true }).eq("doctor_id", me.id).eq("read", false).then(badge);
@@ -104,15 +112,16 @@ async function vPatients() {
   return `<h2>مرضاي</h2><form id="ptF" class="card"><div class="f2"><label>اسم المريض أو رمزه<input name="n" required></label><label>رقم الهاتف (اختياري)<input name="p" type="tel"></label></div><button class="btn sm" style="margin-top:10px">إضافة مريض</button></form><p class="err" id="pmsg"></p>` +
     (ps.length ? `<input id="q" placeholder="ابحث عن مريض" style="margin:12px 0">` + ps.map(p => { const b = bal(py.filter(x => x.patient_id === p.id)); return `<a class="cc" href="#/patient/${p.id}"><div class="r"><b>${esc(p.name_or_code)}</b>${b > 0 ? `<span class="bd pk_cancelled">دين ${fmtN(b)}</span>` : ""}</div><p>${cs.filter(c => c.patient_id === p.id).length} حالة${p.phone ? " · " + esc(p.phone) : ""}</p></a>`; }).join("") : '<div class="card"><h3>لا يوجد مرضى بعد</h3><p>أضف مريضك الأول، أو أرسل حالة وسيُضاف تلقائياً.</p></div>');
 }
-const apCard = a => `<div class="cc"><div class="r"><b>${DT(a.starts_at)}</b><span class="bd ${a.status === "done" ? "ready" : a.status === "cancelled" ? "pk_cancelled" : "sent"}">${{ scheduled: "محجوز", done: "تم", cancelled: "ملغى" }[a.status]}</span></div><p>${esc(a.patients?.name_or_code)} ${esc(a.reason)}</p>${a.status === "scheduled" ? `<div class="btns" style="margin-top:8px"><button class="btn sm" data-apx="${a.id}" data-s="done">تم</button><button class="btn ghost sm" data-apx="${a.id}" data-s="cancelled">إلغاء</button></div>` : ""}</div>`;
+const apCard = a => `<div class="cc"><div class="r"><b>${DT(a.starts_at)}</b><span class="bd ${a.status === "done" ? "ready" : a.status === "cancelled" ? "pk_cancelled" : "sent"}">${{ scheduled: "محجوز", done: "تم", cancelled: "ملغى" }[a.status]}</span></div><p>${esc(a.patients?.name_or_code)} ${esc(a.reason)}</p><div class="btns" style="margin-top:8px">${a.status === "scheduled" ? `<button class="btn sm" data-apx="${a.id}" data-s="done">تم</button><button class="btn ghost sm" data-apx="${a.id}" data-s="cancelled">إلغاء الموعد</button>` : ""}<button class="btn ghost sm danger" data-del="appointments:${a.id}">حذف</button></div></div>`;
 async function vPatient(id) {
   const [{ data: p }, { data: cs }, { data: ap }, { data: py }] = await Promise.all([sb.from("patients").select("*").eq("id", id).single(), sb.from("cases").select(SEL).eq("patient_id", id).order("created_at", { ascending: false }), sb.from("appointments").select("*,patients(name_or_code)").eq("patient_id", id).order("starts_at", { ascending: false }), sb.from("payments").select("*").eq("patient_id", id)]);
   const b = bal(py), n = esc(p.name_or_code);
   return `<a class="btn ghost sm" href="#/patients">رجوع</a><h2 style="margin-top:10px">${n}</h2><p class="lead">${esc(p.phone) || "بدون رقم هاتف"}</p>
-<div class="quick"><a href="#/new" data-pt="${n}">${svg("plus")}حالة جديدة</a><a href="#/appts" data-pt="${n}">${svg("cal")}موعد</a><a href="#/accounts" data-pt="${n}">${svg("file")}دفعة</a></div>
+<div class="quick2"><a href="#/new" data-pt="${n}">${svg("plus")}حالة جديدة</a><a href="#/appts" data-pt="${n}">${svg("cal")}موعد</a><a href="#/accounts" data-pt="${n}" data-kind="charge">${svg("file")}فاتورة</a><a href="#/accounts" data-pt="${n}" data-kind="payment">${svg("file")}دفعة</a></div>
+<div class="stat ${b > 0 ? "" : "ok"}"><b>${fmtN(b)}</b><span>${b > 0 ? "المتبقي على المريض" : "لا يوجد مبلغ متبقٍ"}</span></div>
 <form id="ptEF" data-id="${p.id}"><label style="margin-top:14px">ملاحظات المريض<textarea name="notes">${esc(p.notes)}</textarea></label><button class="btn sm" style="margin-top:8px">حفظ الملاحظات</button></form>
-<h3 class="sh">الحساب</h3><div class="stat ${b > 0 ? "" : "ok"}"><b>${fmtN(b)}</b><span>${b > 0 ? "دين مستحق على المريض" : "لا توجد ديون"}</span></div>
-<h3 class="sh">الأعمال مع المخبر</h3>${cs.map(cc).join("") || '<p class="lead">لا توجد حالات.</p>'}<h3 class="sh">المواعيد</h3>${ap.map(apCard).join("") || '<p class="lead">لا توجد مواعيد.</p>'}`;
+<h3 class="sh">الأعمال مع المخبر</h3>${cs.map(cc).join("") || '<p class="lead">لا توجد حالات.</p>'}<h3 class="sh">المواعيد</h3>${ap.map(apCard).join("") || '<p class="lead">لا توجد مواعيد.</p>'}
+<button class="btn ghost danger" style="margin-top:22px" data-del="patients:${p.id}">حذف المريض</button>`;
 }
 async function vAppts() {
   const [{ data: ap }, { data: ps }] = await Promise.all([sb.from("appointments").select("*,patients(name_or_code)").order("starts_at"), sb.from("patients").select("name_or_code")]);
@@ -121,23 +130,52 @@ async function vAppts() {
 }
 async function vAccounts() {
   const [{ data: py }, { data: ps }] = await Promise.all([sb.from("payments").select("*,patients(name_or_code)").order("created_at", { ascending: false }), sb.from("patients").select("name_or_code")]);
-  const sum = k => py.filter(x => x.kind === k).reduce((s, x) => s + +x.amount, 0), owed = {};
+  const k = preKind; preKind = "charge";
+  const month = new Date().toISOString().slice(0, 7), owed = {};
   py.forEach(x => { const n = x.patients?.name_or_code || "—"; owed[n] = (owed[n] || 0) + (x.kind === "charge" ? 1 : -1) * +x.amount; });
-  return `<h2>حسابات العيادة</h2><p class="lead">سجّل المبالغ بالعملة التي تعتمدها في عيادتك. هذه الحسابات خاصة بك ولا يراها المخبر.</p><div class="stats"><div class="stat"><b>${fmtN(sum("charge"))}</b><span>إجمالي الرسوم</span></div><div class="stat ok"><b>${fmtN(sum("payment"))}</b><span>المقبوض</span></div><div class="stat"><b>${fmtN(sum("charge") - sum("payment"))}</b><span>المتبقي (ديون)</span></div></div>
-<form id="pyF" class="card"><label>المريض<input name="p" list="pl" value="${esc(pre)}" required></label>${plist(ps)}<div class="f2" style="margin-top:10px"><label>النوع<select name="k"><option value="charge">رسوم علاج</option><option value="payment">دفعة مقبوضة</option></select></label><label>المبلغ<input name="a" type="number" min="1" step="any" required></label></div><label style="margin-top:10px">ملاحظة<input name="n"></label><button class="btn" style="width:100%;margin-top:12px">تسجيل</button></form><p class="err" id="ymsg"></p>
-<h3 class="sh">الديون</h3>${Object.entries(owed).filter(([, b]) => b > 0).map(([n, b]) => `<div class="cc"><div class="r"><b>${esc(n)}</b><span class="bd pk_cancelled">${fmtN(b)}</span></div></div>`).join("") || '<p class="lead">لا توجد ديون.</p>'}
-<h3 class="sh">آخر الحركات</h3>${py.slice(0, 20).map(x => `<div class="cc"><div class="r"><b>${esc(x.patients?.name_or_code)}</b><span class="bd ${x.kind === "payment" ? "ready" : "sent"}">${x.kind === "payment" ? "دفعة" : "رسوم"} ${fmtN(x.amount)}</span></div><p>${esc(x.note)} · ${D(x.created_at)}</p></div>`).join("")}`;
+  const debts = Object.entries(owed).filter(([, b]) => b > 0).sort((a, b) => b[1] - a[1]), total = debts.reduce((s, [, b]) => s + b, 0);
+  const got = py.filter(x => x.kind === "payment" && x.created_at.slice(0, 7) === month).reduce((s, x) => s + +x.amount, 0);
+  return `<h2>الحسابات</h2><div class="stats"><div class="stat"><b>${fmtN(total)}</b><span>المتبقي على المرضى</span></div><div class="stat ok"><b>${fmtN(got)}</b><span>استلمته هذا الشهر</span></div></div>
+<div class="card"><p>1. عند إنهاء العلاج سجّل <b>فاتورة</b> بمبلغ العلاج.<br>2. عند استلام مال من المريض سجّل <b>دفعة</b>.<br>الباقي على كل مريض يُحسب تلقائياً. المبالغ بعملتك، وهذه الصفحة خاصة بك ولا يراها المخبر.</p></div>
+<form id="pyF" class="card"><div class="tabs"><button type="button" data-k="charge" class="${k === "charge" ? "on" : ""}">فاتورة</button><button type="button" data-k="payment" class="${k === "payment" ? "on" : ""}">دفعة</button></div><input type="hidden" name="k" value="${k}">
+<label>المريض<input name="p" list="pl" value="${esc(pre)}" required></label>${plist(ps)}<label style="margin-top:10px">المبلغ<input name="a" type="number" min="1" step="any" required></label><label style="margin-top:10px">ملاحظة (اختياري)<input name="n"></label><button class="btn" style="width:100%;margin-top:12px">حفظ</button></form><p class="err" id="ymsg"></p>
+<h3 class="sh">المرضى المتبقي عليهم مبلغ</h3>${debts.map(([n, b]) => `<div class="cc"><div class="r"><b>${esc(n)}</b><span class="bd pk_cancelled">${fmtN(b)}</span></div><div class="btns" style="margin-top:8px"><a class="btn sm" href="#/accounts" data-pt="${esc(n)}" data-kind="payment">تسجيل دفعة</a></div></div>`).join("") || '<p class="lead">لا يوجد مبلغ متبقٍ على أي مريض.</p>'}
+<h3 class="sh">آخر الحركات</h3>${py.slice(0, 15).map(x => `<div class="cc"><div class="r"><b>${esc(x.patients?.name_or_code)}</b><span class="bd ${x.kind === "payment" ? "ready" : "sent"}">${x.kind === "payment" ? "دفعة" : "فاتورة"} ${fmtN(x.amount)}</span></div><p>${esc(x.note)} · ${D(x.created_at)}</p><div class="btns" style="margin-top:6px"><button class="btn ghost sm danger" data-del="payments:${x.id}">حذف</button></div></div>`).join("")}`;
 }
 async function vProfile() {
   return `<h2>حسابي</h2><div class="card"><h3>تثبيت التطبيق على هاتفك</h3><p>${inst ? "اضغط الزر لإضافة التطبيق إلى شاشتك الرئيسية." : "من قائمة المتصفح اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»."}</p>${inst ? '<button class="btn sm" data-act="install">تثبيت التطبيق</button>' : ""}</div><div class="quick"><a href="#/accounts">${svg("file")}الحسابات</a><a href="#/notes">${svg("bell")}الإشعارات</a><a href="#/pickup">${svg("car")}طلب استلام</a></div><h3 class="sh">هوية العيادة</h3>
 <div class="ph-head"><div class="ph-clinic">${me.logo_url ? `<img src="${esc(me.logo_url)}" alt="">` : '<span class="ph-ph">شعار العيادة</span>'}<div><b>${esc(me.clinic_name)}</b></div></div><img class="ph-lab" src="assets/logo.jpg" alt="Friends Dental Lab"></div>
 <form id="prF"><div class="f2"><label class="full">الاسم الكامل<input name="name" value="${esc(me.name)}" required></label><label>رقم الهاتف<input name="phone" value="${esc(me.phone)}" required></label><label>الاختصاص<input name="specialty" value="${esc(me.specialty)}"></label><label class="full">اسم العيادة<input name="clinic_name" value="${esc(me.clinic_name)}"></label><label class="full">عنوان العيادة<input name="address" value="${esc(me.address)}"></label><label>المنطقة<input name="area" value="${esc(me.area)}"></label><label>تغيير شعار العيادة<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label></div><button class="btn" style="width:100%;margin-top:14px">حفظ التعديلات</button></form><p class="err" id="fmsg"></p><p class="lead">حالة الحساب: ${ST_AR[me.status]} (لا تُعدّل إلا من الإدارة).</p><button class="btn ghost" data-act="logout">تسجيل الخروج</button>`;
 }
+async function delRow(tb, id) {
+  if (!["payments", "appointments", "patients", "cases"].includes(tb)) return;
+  if (!confirm(tb === "patients" ? "سيُحذف المريض مع مواعيده وحساباته. هل أنت متأكد؟" : "هل أنت متأكد من الحذف؟ لا يمكن التراجع.")) return;
+  if (tb === "patients") {
+    const { count } = await sb.from("cases").select("id", { count: "exact", head: true }).eq("patient_id", id);
+    if (count) return alert("لا يمكن حذف مريض لديه حالات مرسلة للمخبر.");
+    await sb.from("payments").delete().eq("patient_id", id); await sb.from("appointments").delete().eq("patient_id", id);
+  }
+  if (tb === "cases") {
+    const { data: c } = await sb.from("cases").select("status").eq("id", id).single();
+    if (c.status !== "sent") return alert("لا يمكن حذف حالة استلمها المخبر. اكتب ملاحظة أو تواصل مع Friends.");
+    const { data: f } = await sb.from("case_files").select("file_url").eq("case_id", id);
+    if (f?.length) await sb.storage.from("case-files").remove(f.map(x => x.file_url));
+  }
+  const { data, error } = await sb.from(tb).delete().eq("id", id).select("id");
+  if (error || !data?.length) return alert("تعذر الحذف.");
+  const to = { patients: "#/patients", cases: "#/cases" }[tb];
+  if (to && location.hash !== to) location.hash = to; else route();
+}
 const v = $("view");
 v.onclick = e => {
   const t = e.target;
-  if (t.classList.contains("tooth")) t.classList.toggle("on");
+  const tb = t.closest(".tooth"); if (tb) tb.classList.toggle("on");
+  const go_ = t.closest("[data-go]"); if (go_) location.hash = go_.dataset.go;
   const pt = t.closest("[data-pt]"); if (pt) pre = pt.dataset.pt;
+  const kd = t.closest("[data-kind]"); if (kd) preKind = kd.dataset.kind;
+  const lk = t.closest("a[href^='#/']"); if (lk && (pt || kd) && location.hash === lk.getAttribute("href")) setTimeout(route, 0);
+  const kb = t.closest("button[data-k]"); if (kb) { document.querySelectorAll("button[data-k]").forEach(b => b.className = b === kb ? "on" : ""); document.querySelector("[name=k]").value = kb.dataset.k; }
+  const dl = t.closest("[data-del]"); if (dl) delRow(...dl.dataset.del.split(":"));
   const ax = t.closest("[data-apx]"); if (ax) sb.from("appointments").update({ status: ax.dataset.s }).eq("id", ax.dataset.apx).then(route);
   if (t.dataset.act === "install" && inst) inst.prompt();
   if (t.dataset.act === "logout") sb.auth.signOut().then(() => { me = null; boot(); });
@@ -147,6 +185,7 @@ v.onclick = e => {
 v.oninput = e => { if (e.target.id === "q") document.querySelectorAll("#view .cc").forEach(c => c.hidden = !c.textContent.includes(e.target.value)); };
 v.onsubmit = async e => {
   e.preventDefault(); const f = e.target, d = Object.fromEntries(new FormData(f));
+  if (f.id === "chatF") { f.reset(); return chatSend(d.m, async () => { v.innerHTML = await vHelp(); window.scrollTo(0, document.body.scrollHeight); }); }
   if (f.id === "newF") {
     const files = [...f.elements.files.files];
     if (files.some(x => x.size > 8e6)) return alert("حجم أحد الملفات أكبر من 8 ميغابايت.");
@@ -184,7 +223,7 @@ $("loginForm").onsubmit = async e => {
 $("regForm").onsubmit = async e => {
   e.preventDefault(); err(); const btn = e.target.querySelector("button"); btn.disabled = true; btn.textContent = "جاري إنشاء الحساب...";
   const f = Object.fromEntries(new FormData(e.target));
-  const { data, error } = await sb.auth.signUp({ email: toEmail(f.phone), password: f.password, options: { data: { name: f.name, phone: f.phone, specialty: f.specialty, clinic_name: f.clinic_name, address: f.address, area: f.area } } });
+  const { data, error } = await sb.auth.signUp({ email: toEmail(f.phone), password: f.password, options: { data: { invite: (f.invite || "").trim(), name: f.name, phone: f.phone, specialty: f.specialty, clinic_name: f.clinic_name, address: f.address, area: f.area } } });
   btn.disabled = false; btn.textContent = "إنشاء حساب";
   if (error) return err(/registered/i.test(error.message) ? "هذا الرقم مسجل مسبقاً، سجّل الدخول." : "تعذر إنشاء الحساب: " + error.message);
   const file = $("logoFile").files[0];
@@ -196,4 +235,6 @@ $("regForm").onsubmit = async e => {
   boot();
 };
 ["out1", "out2"].forEach(i => $(i).onclick = async () => { await sb.auth.signOut(); me = null; boot(); });
+const inv = new URLSearchParams(location.search).get("invite");
+if (inv) { $("tReg").onclick(); $("inviteIn").value = inv.toUpperCase(); }
 boot();
