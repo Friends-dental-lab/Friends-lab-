@@ -43,3 +43,9 @@ async function chatSend(text, rerender) {
   try { const { data } = await sb.functions.invoke("assistant", { body: { messages: CHAT.slice(-11, -1) } }); if (data?.reply) reply = data.reply; } catch (e) {}
   CHAT[CHAT.length - 1].content = reply; rerender();
 }
+
+// ===== حسابات الطبيب مع المخبر =====
+const money = n => Number(n || 0).toLocaleString("en");
+const pcs = c => Math.max(1, (c.teeth || []).length);
+const byType = cs => { const m = {}; cs.forEach(c => { const x = m[c.work_type] = m[c.work_type] || { l: c.work_type, v: 0, n: 0, val: 0 }; x.v += pcs(c); x.n++; x.val += +c.price || 0; }); return Object.values(m).sort((a, b) => b.v - a.v); };
+const ledger = (cs, ps) => { const due = cs.reduce((s, c) => s + (+c.price || 0), 0), paid = ps.reduce((s, p) => s + +p.amount, 0); return { due, paid, left: due - paid, unpriced: cs.filter(c => c.price == null).length }; };

@@ -27,9 +27,9 @@ async function badge() {
 }
 async function route() {
   const [r, a] = (location.hash.slice(2) || "home").split("/"), v = $("view");
-  document.querySelectorAll(".bn a").forEach(x => x.classList.toggle("on", x.dataset.r === ({ case: "cases", new: "cases", patient: "patients", accounts: "profile", notes: "profile", pickup: "profile", stats: "home" }[r] || r)));
+  document.querySelectorAll(".bn a").forEach(x => x.classList.toggle("on", x.dataset.r === ({ case: "cases", new: "cases", patient: "patients", accounts: "profile", notes: "profile", pickup: "profile", stats: "home", labacc: "home" }[r] || r)));
   v.innerHTML = '<p class="lead">جارٍ التحميل...</p>';
-  try { v.innerHTML = await ({ home: vHome, cases: vCases, case: () => vCase(a), new: vNew, notes: vNotes, pickup: vPickup, help: vHelp, stats: vStats, patients: vPatients, patient: () => vPatient(a), appts: vAppts, accounts: vAccounts, profile: vProfile }[r] || vHome)(); } catch (e) { v.innerHTML = `<p class="err">${BAD}</p>`; }
+  try { v.innerHTML = await ({ home: vHome, cases: vCases, case: () => vCase(a), new: vNew, notes: vNotes, pickup: vPickup, help: vHelp, stats: vStats, labacc: vLabAcc, patients: vPatients, patient: () => vPatient(a), appts: vAppts, accounts: vAccounts, profile: vProfile }[r] || vHome)(); } catch (e) { v.innerHTML = `<p class="err">${BAD}</p>`; }
   window.scrollTo(0, 0); pre = "";
 }
 window.onhashchange = () => me && route();
@@ -40,8 +40,16 @@ async function vHome() {
   return `<h2>مرحباً د. ${esc(me.name)}</h2><p class="lead">مرحباً بك في بوابة Friends Dental Lab</p>
 <div class="stats"><div class="stat ok"><b>${n("ready")}</b><span>جاهزة للاستلام</span></div><div class="stat"><b>${n("sent", "received", "in_progress", "review")}</b><span>قيد العمل عند المخبر</span></div></div>
 <div class="quick2"><a href="#/new">${svg("plus")}حالة جديدة</a><a href="#/patients">${svg("users")}مريض جديد</a><a href="#/appts">${svg("cal")}موعد جديد</a><a href="#/pickup">${svg("car")}طلب استلام</a></div>
-<a class="cc" href="#/accounts"><b>الحسابات</b><p>ما على المرضى لك، وما استلمته منهم.</p></a><a class="cc" href="#/stats"><b>الإحصائيات</b><p>رسوم بيانية عن حالاتك.</p></a>
+<a class="cc" href="#/labacc"><b>حسابي مع المخبر</b><p>ما أخذته من Friends وما دفعته وما بقي عليك.</p></a><a class="cc" href="#/accounts"><b>حسابات العيادة</b><p>ما على مرضاك لك، وما استلمته منهم.</p></a><a class="cc" href="#/stats"><b>الإحصائيات</b><p>رسوم بيانية عن حالاتك.</p></a>
 <h3 class="sh">آخر الحالات</h3>${cs.length ? cs.slice(0, 3).map(cc).join("") : empty()}`;
+}
+async function vLabAcc() {
+  const [{ data: cs }, { data: ps }] = await Promise.all([sb.from("cases").select("work_type,teeth,price,created_at"), sb.from("lab_payments").select("*").order("created_at", { ascending: false })]);
+  const L = ledger(cs, ps), T = byType(cs), st = (t, x, c = "") => `<div class="stat ${c}"><b>${money(x)}</b><span>${t}</span></div>`;
+  return `<h2>حسابي مع المخبر</h2><p class="lead">ما أخذته من Friends، وما دفعته، وما بقي عليك. المبالغ بالعملة المتفق عليها مع المخبر.</p>
+<div class="stats">${st("إجمالي المستحق", L.due)}${st("ما دفعته", L.paid, "ok")}${st("المتبقي عليك", L.left)}</div>${L.unpriced ? `<p class="lead">${L.unpriced} حالة لم يحدد المخبر سعرها بعد.</p>` : ""}
+<div class="chart"><h3>ما أخذته حسب النوع (عدد القطع)</h3>${bars(T.map(x => ({ l: x.l, v: x.v })))}</div>${T.map(x => `<div class="cc"><div class="r"><b>${esc(x.l)}</b><span class="bd sent">${x.v} قطعة</span></div><p>${x.n} حالة · القيمة ${money(x.val)}</p></div>`).join("")}
+<h3 class="sh">دفعاتك للمخبر</h3>${ps.map(p => `<div class="cc"><div class="r"><b>${money(p.amount)}</b><small>${D(p.created_at)}</small></div><p>${esc(p.note)}</p></div>`).join("") || '<p class="lead">لا توجد دفعات مسجلة.</p>'}`;
 }
 async function vStats() {
   const [{ data: cs }, { data: py }] = await Promise.all([sb.from("cases").select(SEL), sb.from("payments").select("kind,amount,created_at")]);
@@ -143,7 +151,7 @@ async function vAccounts() {
 <h3 class="sh">آخر الحركات</h3>${py.slice(0, 15).map(x => `<div class="cc"><div class="r"><b>${esc(x.patients?.name_or_code)}</b><span class="bd ${x.kind === "payment" ? "ready" : "sent"}">${x.kind === "payment" ? "دفعة" : "فاتورة"} ${fmtN(x.amount)}</span></div><p>${esc(x.note)} · ${D(x.created_at)}</p><div class="btns" style="margin-top:6px"><button class="btn ghost sm danger" data-del="payments:${x.id}">حذف</button></div></div>`).join("")}`;
 }
 async function vProfile() {
-  return `<h2>حسابي</h2><div class="card"><h3>تثبيت التطبيق على هاتفك</h3><p>${inst ? "اضغط الزر لإضافة التطبيق إلى شاشتك الرئيسية." : "من قائمة المتصفح اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»."}</p>${inst ? '<button class="btn sm" data-act="install">تثبيت التطبيق</button>' : ""}</div><div class="quick"><a href="#/accounts">${svg("file")}الحسابات</a><a href="#/notes">${svg("bell")}الإشعارات</a><a href="#/pickup">${svg("car")}طلب استلام</a></div><h3 class="sh">هوية العيادة</h3>
+  return `<h2>حسابي</h2><div class="card"><h3>تثبيت التطبيق على هاتفك</h3><p>${inst ? "اضغط الزر لإضافة التطبيق إلى شاشتك الرئيسية." : (/iphone|ipad|ipod/i.test(navigator.userAgent) ? "في Safari اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»." : "من قائمة المتصفح اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».")}</p>${inst ? '<button class="btn sm" data-act="install">تثبيت التطبيق</button>' : ""}</div><div class="quick"><a href="#/accounts">${svg("file")}الحسابات</a><a href="#/notes">${svg("bell")}الإشعارات</a><a href="#/pickup">${svg("car")}طلب استلام</a></div><h3 class="sh">هوية العيادة</h3>
 <div class="ph-head"><div class="ph-clinic">${me.logo_url ? `<img src="${esc(me.logo_url)}" alt="">` : '<span class="ph-ph">شعار العيادة</span>'}<div><b>${esc(me.clinic_name)}</b></div></div><img class="ph-lab" src="assets/logo.jpg" alt="Friends Dental Lab"></div>
 <form id="prF"><div class="f2"><label class="full">الاسم الكامل<input name="name" value="${esc(me.name)}" required></label><label>رقم الهاتف<input name="phone" value="${esc(me.phone)}" required></label><label>الاختصاص<input name="specialty" value="${esc(me.specialty)}"></label><label class="full">اسم العيادة<input name="clinic_name" value="${esc(me.clinic_name)}"></label><label class="full">عنوان العيادة<input name="address" value="${esc(me.address)}"></label><label>المنطقة<input name="area" value="${esc(me.area)}"></label><label>تغيير شعار العيادة<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label></div><button class="btn" style="width:100%;margin-top:14px">حفظ التعديلات</button></form><p class="err" id="fmsg"></p><p class="lead">حالة الحساب: ${ST_AR[me.status]} (لا تُعدّل إلا من الإدارة).</p><button class="btn ghost" data-act="logout">تسجيل الخروج</button>`;
 }
